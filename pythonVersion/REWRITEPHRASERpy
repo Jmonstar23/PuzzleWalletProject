@@ -1,0 +1,70 @@
+import itertools
+import bip39
+import blockcypher
+import logging
+
+# Configure logging
+logging.basicConfig(filename='bruteForceBTC.log', level=logging.INFO, format='%(asctime=s - %(message)s')
+
+# List of words (replace with your actual words)
+prefix_words = ["head", "honey", "bitter", "find", "sock", "dash"]
+restricted_words = {"bridge": 7, "current": 8}  # Words with restricted positions
+segment_words = ["word7", "word8", "word9", "word10", "word11", "word12", "word13", "word14", "word15", "word16", "word17", "word18"]  # Replace with your actual words
+suffix_words = ["word19", "word20", "word21", "word22", "word23", "word24"]  # Replace with your actual words
+
+# Function to generate Bitcoin address from a key phrase
+def generate_address(key_phrase):
+    seed = bip32utils.BIP32Key.fromEntropy(key_phrase.encode())
+    address = seed.Address()
+    return address
+
+# Function to check the balance of a Bitcoin address
+def check_balance(address):
+    balance = blockcypher.get_address_overview(address, coin_symbol='btc')
+    return balance['final_balance']
+
+# Function to check if a key phrase has a valid BIP39 checksum
+def is_valid_bip39(key_phrase):
+    return bip39.validate_mnemonic(key_phrase)
+
+# Generate all possible combinations of the segment words for indexes 7-12
+segment_combinations = list(itertools.permutations(segment_words, 6))
+
+# Filter combinations to ensure restricted words are present and not in their restricted positions
+filtered_segment_combinations = []
+for combo in segment_combinations:
+    valid = True
+    for word, pos in restricted_words.items():
+        if word not in combo or combo[pos - 7] == word:  # Adjust position for 0-based index and prefix offset
+            valid = False
+            break
+    if valid:
+        filtered_segment_combinations.append(combo)
+
+# Check each combination
+for segment_combo in filtered_segment_combinations:
+    remaining_words = set(segment_words) - set(segment_combo)
+    remaining_words.update(suffix_words)
+    
+    # Generate all possible combinations of the remaining words for indexes 13-24
+    suffix_combinations = list(itertools.permutations(remaining_words, 12))
+    
+    for suffix_combo in suffix_combinations:
+        key_phrase = prefix_words + list(segment_combo) + list(suffix_combo)
+        key_phrase_str = " ".join(key_phrase)
+        
+        if is_valid_bip39(key_phrase_str):
+            address = generate_address(key_phrase_str)
+            balance = check_balance(address)
+            
+            # Log the key phrase, address, and balance
+            logging.info(f"Key Phrase: {key_phrase_str}")
+            logging.info(f"Bitcoin Address: {address}")
+            logging.info(f"Balance: {balance}")
+            
+            if balance > 0:
+                print("Found balance!")
+                print("Key Phrase:", key_phrase_str)
+                print("Bitcoin Address:", address)
+                print("Balance:", balance)
+                break
